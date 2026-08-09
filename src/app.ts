@@ -1,27 +1,69 @@
 import express from "express";
 import cors from "cors";
-import { db } from "./config/db";
-import authRoutes from "./routes/auth.routes";
+
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "./lib/auth";
+
+import startupRoute from "./routes/startup.route";
+import coFounderRoute from "./routes/founder/founder.route";
+import profileRoute from "./routes/profile.route";
+import userRoute from "./routes/user.route";
+import applicationRoutes from "./routes/application.route";
+import savedFounderRoutes from "./routes/saved-founder.route";
+import investorOverviewRoute from "./routes/insvestor/investor.overview";
+import founderOverviewRoute from "./routes/founder/founderOverview";
+import founderRequestRoutes from "./routes/founder/founderRequest.routes";
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-const usersCollection = db.collection("users");
-
-// HEALTH CHECK
 app.get("/", (_req, res) => {
-  res.send("Server is running 🚀");
+  res.send("Server Running 🚀");
 });
 
-// AUTH ROUTES 
-app.use("/api/v1/auth", authRoutes);
+// Better Auth
+app.all("/api/auth/{*any}", toNodeHandler(auth));
 
-app.get("/users", async (_req, res) => {
-  const users = await usersCollection.find().toArray();
+//Browse-Startup API
+app.use("/browse-startups", startupRoute);
 
-  res.send(users);
-});
+// Founder API
+app.use("/founders", coFounderRoute);
+
+// Profile API 
+app.use("/profile", profileRoute);
+
+// User Role & Image  API
+app.use("/api/users", userRoute);
+
+// save startup 
+app.use("/saved-founders", savedFounderRoutes);
+
+// ---------------------------
+// INVESTOR API
+// ---------------------------
+
+// INVESTOR OVERVIEW ROUTE 
+app.use("/investor-overview", investorOverviewRoute);
+
+// My Investments API
+app.use("/applications", applicationRoutes);
+
+// Founder API 
+// -----------------------
+
+// Founder Overview API
+app.use("/founder-overview", founderOverviewRoute);
+
+// Founder Request API
+app.use("/founder-requests",founderRequestRoutes);
 
 export default app;
