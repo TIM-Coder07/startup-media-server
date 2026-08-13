@@ -4,16 +4,13 @@ import { db } from "../../config/db";
 
 const router = Router();
 
-/*
-========================================
-POST - Founder sends profile request
-========================================
-*/
+// ==========================================
+// POST - Founder sends profile request
+// ==========================================
 router.post("/", async (req, res) => {
     try {
         const founder = req.body;
 
-        // Basic validation
         if (!founder.name || !founder.email) {
             return res.status(400).json({
                 success: false,
@@ -21,7 +18,7 @@ router.post("/", async (req, res) => {
             });
         }
 
-        // Check if founder already has a pending request
+        // Check pending request
         const existingRequest = await db
             .collection("founderRequests")
             .findOne({
@@ -36,11 +33,12 @@ router.post("/", async (req, res) => {
             });
         }
 
-        // Check if founder is already approved
+        // Check approved founder
         const existingFounder = await db
             .collection("founders")
             .findOne({
                 email: founder.email,
+                status: "approved",
             });
 
         if (existingFounder) {
@@ -54,6 +52,7 @@ router.post("/", async (req, res) => {
             ...founder,
             status: "pending",
             createdAt: new Date(),
+            updatedAt: new Date(),
         };
 
         const result = await db
@@ -62,10 +61,10 @@ router.post("/", async (req, res) => {
 
         res.status(201).json({
             success: true,
-            insertedId: result.insertedId,
             message: "Profile request sent to admin",
+            insertedId: result.insertedId,
+            request,
         });
-
     } catch (error) {
         console.error(error);
 
@@ -76,13 +75,78 @@ router.post("/", async (req, res) => {
     }
 });
 
+// ==========================================
+// GET - Current user's request
+// ==========================================
+router.get("/me", async (req, res) => {
+    console.log("🔥 /founder-requests/me HIT");
 
-/*
-========================================
-GET - All Founder Requests
-Admin uses this
-========================================
-*/
+    try {
+        const email = req.query.email as string;
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: "Email is required",
+            });
+        }
+
+        // 1. First check approved founder
+        const founder = await db
+            .collection("founders")
+            .findOne({
+                email,
+                status: "approved",
+            });
+
+        if (founder) {
+            return res.status(200).json({
+                success: true,
+                type: "profile",
+                status: "approved",
+                data: founder,
+            });
+        }
+
+        // 2. Check latest request
+        const request = await db
+            .collection("founderRequests")
+            .findOne(
+                { email },
+                {
+                    sort: {
+                        createdAt: -1,
+                    },
+                }
+            );
+
+        if (!request) {
+            return res.status(404).json({
+                success: false,
+                message: "No profile or request found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            type: "request",
+            status: request.status,
+            data: request,
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch profile status",
+        });
+    }
+});
+
+// ==========================================
+// GET - All pending requests
+// ==========================================
 router.get("/", async (_req, res) => {
     try {
         const requests = await db
@@ -96,7 +160,6 @@ router.get("/", async (_req, res) => {
             .toArray();
 
         res.status(200).json(requests);
-
     } catch (error) {
         console.error(error);
 
@@ -106,156 +169,5 @@ router.get("/", async (_req, res) => {
         });
     }
 });
-
-
-/*
-========================================
-ACCEPT Founder Request
-========================================
-*/
-router.patch("/:id/approve", async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        if (!ObjectId.isValid(id)) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid request ID",
-            });
-        }
-
-        const requestId = new ObjectId(id);
-
-        // Find request
-        const request = await db
-            .collection("founderRequests")
-            .findOne({
-                _id: requestId,
-                status: "pending",
-            });
-
-        if (!request) {
-            return res.status(404).json({
-                success: false,
-                message: "Pending request not found",
-            });
-        }
-
-        // Check duplicate founder
-        const existingFounder = await db
-            .collection("founders")
-            .findOne({
-                email: request.email,
-            });
-
-        if (existingFounder) {
-            return res.status(409).json({
-                success: false,
-                message: "Founder profile already exists",
-            });
-        }
-
-        // Create founder profile
-        const founder = {
-            name: request.name,
-            email: request.email,
-            industry: request.industry,
-            experience: request.experience,
-            location: request.location,
-            linkedin: request.linkedin,
-            profileImage: request.profileImage,
-            skills: request.skills,
-            bio: request.bio,
-            createdAt: new Date(),
-        };
-
-        await db
-            .collection("founders")
-            .insertOne(founder);
-
-        // Update request status
-        await db
-            .collection("founderRequests")
-            .updateOne(
-                {
-                    _id: requestId,
-                },
-                {
-                    $set: {
-                        status: "approved",
-                        approvedAt: new Date(),
-                    },
-                }
-            );
-
-        res.status(200).json({
-            success: true,
-            message: "Founder approved successfully",
-        });
-
-    } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            success: false,
-            message: "Failed to approve founder",
-        });
-    }
-});
-
-
-/*
-========================================
-REJECT Founder Request
-========================================
-*/
-router.patch("/:id/reject", async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        if (!ObjectId.isValid(id)) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid request ID",
-            });
-        }
-
-        const result = await db
-            .collection("founderRequests")
-            .updateOne(
-                {
-                    _id: new ObjectId(id),
-                    status: "pending",
-                },
-                {
-                    $set: {
-                        status: "rejected",
-                        rejectedAt: new Date(),
-                    },
-                }
-            );
-
-        if (result.matchedCount === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Pending request not found",
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: "Founder request rejected",
-        });
-
-    } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            success: false,
-            message: "Failed to reject request",
-        });
-    }
-});
-
 
 export default router;

@@ -13,6 +13,7 @@ import savedFounderRoutes from "./routes/saved-founder.route";
 import investorOverviewRoute from "./routes/insvestor/investor.overview";
 import founderOverviewRoute from "./routes/founder/founderOverview";
 import founderRequestRoutes from "./routes/founder/founderRequest.routes";
+import adminActionRoutes from "./routes/admin/admin.action.routes";
 
 const app = express();
 
@@ -57,13 +58,24 @@ app.use("/investor-overview", investorOverviewRoute);
 // My Investments API
 app.use("/applications", applicationRoutes);
 
-// Founder API 
 // -----------------------
+// FOUNDER API
+// -----------------------
+
+// app.use("/api/founders", founderRoutes);
 
 // Founder Overview API
 app.use("/founder-overview", founderOverviewRoute);
 
 // Founder Request API
 app.use("/founder-requests",founderRequestRoutes);
+
+
+// ----------------------------
+// ADMIN API
+// ----------------------------
+app.use("/api", adminActionRoutes);
+
+
 
 export default app;
