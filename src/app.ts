@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
-
 import { toNodeHandler } from "better-auth/node";
+
 import { auth } from "./lib/auth";
 
 import startupRoute from "./routes/startup.route";
@@ -10,72 +10,140 @@ import profileRoute from "./routes/profile.route";
 import userRoute from "./routes/user.route";
 import applicationRoutes from "./routes/application.route";
 import savedFounderRoutes from "./routes/saved-founder.route";
+
 import investorOverviewRoute from "./routes/insvestor/investor.overview";
 import founderOverviewRoute from "./routes/founder/founderOverview";
 import founderRequestRoutes from "./routes/founder/founderRequest.routes";
 import adminActionRoutes from "./routes/admin/admin.action.routes";
 
+// Make sure this file actually exists
+import notificationRoute from "./routes/founder/founder.notification";
+
 const app = express();
 
+// =====================================================
+// Middleware
+// =====================================================
+
 app.use(
-  cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
-  })
+    cors({
+        origin: process.env.CLIENT_URL,
+        credentials: true,
+    })
 );
 
 app.use(express.json());
 
+// =====================================================
+// Root
+// =====================================================
+
 app.get("/", (_req, res) => {
-  res.send("Server Running 🚀");
+    res.send("Server Running 🚀");
 });
 
+// =====================================================
 // Better Auth
-app.all("/api/auth/{*any}", toNodeHandler(auth));
+// =====================================================
 
-//Browse-Startup API
-app.use("/browse-startups", startupRoute);
+app.all(
+    "/api/auth/{*any}",
+    toNodeHandler(auth)
+);
 
-// Founder API
-app.use("/founders", coFounderRoute);
+// =====================================================
+// Browse Startup
+// =====================================================
 
-// Profile API 
-app.use("/profile", profileRoute);
+app.use(
+    "/browse-startups",
+    startupRoute
+);
 
-// User Role & Image  API
-app.use("/api/users", userRoute);
+// =====================================================
+// Founder
+// =====================================================
 
-// save startup 
-app.use("/saved-founders", savedFounderRoutes);
+app.use(
+    "/founders",
+    coFounderRoute
+);
 
-// ---------------------------
-// INVESTOR API
-// ---------------------------
+// =====================================================
+// Profile
+// =====================================================
 
-// INVESTOR OVERVIEW ROUTE 
-app.use("/investor-overview", investorOverviewRoute);
+app.use(
+    "/profile",
+    profileRoute
+);
 
-// My Investments API
-app.use("/applications", applicationRoutes);
+// =====================================================
+// Users
+// =====================================================
 
-// -----------------------
-// FOUNDER API
-// -----------------------
+app.use(
+    "/api/users",
+    userRoute
+);
 
-// app.use("/api/founders", founderRoutes);
+// =====================================================
+// Saved Founders
+// =====================================================
 
-// Founder Overview API
-app.use("/founder-overview", founderOverviewRoute);
+app.use(
+    "/saved-founders",
+    savedFounderRoutes
+);
 
-// Founder Request API
-app.use("/founder-requests",founderRequestRoutes);
+// =====================================================
+// Investor
+// =====================================================
 
+app.use(
+    "/investor-overview",
+    investorOverviewRoute
+);
 
-// ----------------------------
-// ADMIN API
-// ----------------------------
-app.use("/api", adminActionRoutes);
+app.use(
+    "/applications",
+    applicationRoutes
+);
 
+// =====================================================
+// Founder Overview
+// =====================================================
 
+app.use(
+    "/founder-overview",
+    founderOverviewRoute
+);
+
+// =====================================================
+// Founder Notifications
+// =====================================================
+
+app.use(
+    "/api/notifications",
+    notificationRoute
+);
+
+// =====================================================
+// Founder Requests
+// =====================================================
+
+app.use(
+    "/founder-requests",
+    founderRequestRoutes
+);
+
+// =====================================================
+// Admin
+// =====================================================
+
+app.use(
+    "/api",
+    adminActionRoutes
+);
 
 export default app;

@@ -5,64 +5,78 @@ import { db } from "../../config/db";
 const router = Router();
 
 // ==========================================
-// POST - Submit Founder Profile Request
+// POST - Submit / Resubmit Founder Profile
 // ==========================================
 router.post("/", async (req, res) => {
-    try {
-        const founder = req.body;
+  try {
+    const founder = req.body;
 
-        if (!founder.name || !founder.email) {
-            return res.status(400).json({
-                message: "Name and Email are required",
-            });
-        }
-
-        const existingFounder = await db
-            .collection("founders")
-            .findOne({
-                email: founder.email,
-            });
-
-        if (existingFounder) {
-            return res.status(409).json({
-                message: "Profile already exists",
-            });
-        }
-
-        const founderData = {
-            ...founder,
-
-            // IMPORTANT
-            status: "pending",
-
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
-
-        const result = await db
-            .collection("founders")
-            .insertOne(founderData);
-
-        const createdFounder = await db
-            .collection("founders")
-            .findOne({
-                _id: result.insertedId,
-            });
-
-        res.status(201).json({
-            success: true,
-            message: "Profile submitted for admin approval",
-            founder: createdFounder,
-        });
-
-    } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            success: false,
-            message: "Failed to create founder",
-        });
+    if (!founder.name || !founder.email) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and Email are required",
+      });
     }
+
+    // ==========================================
+    // Check existing pending request
+    // ==========================================
+
+    const pendingRequest = await db.collection("founderRequests").findOne({
+      email: founder.email,
+      status: "pending",
+    });
+
+    if (pendingRequest) {
+      return res.status(409).json({
+        success: false,
+        message: "You already have a pending request",
+      });
+    }
+
+    // ==========================================
+    // Create new request
+    // ==========================================
+
+    const requestData = {
+      name: founder.name,
+      email: founder.email,
+      industry: founder.industry,
+      experience: founder.experience,
+      location: founder.location,
+      linkedin: founder.linkedin,
+      profileImage: founder.profileImage,
+      skills: founder.skills,
+      bio: founder.bio,
+
+      status: "pending",
+
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const result = await db
+      .collection("founderRequests")
+      .insertOne(requestData);
+
+    const createdRequest = await db.collection("founderRequests").findOne({
+      _id: result.insertedId,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Profile submitted for admin approval",
+
+      request: createdRequest,
+    });
+  } catch (error) {
+    console.error("POST /founders error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to submit founder request",
+    });
+  }
 });
 
 // ==========================================
@@ -72,7 +86,9 @@ router.get("/", async (_req, res) => {
   try {
     const founders = await db
       .collection("founders")
-      .find()
+      .find({
+        status: "approved",
+      })
       .sort({
         createdAt: -1,
       })
@@ -93,44 +109,41 @@ router.get("/", async (_req, res) => {
 // GET - Current User Request/Profile
 // ==========================================
 router.get("/me", async (req, res) => {
-    try {
-        const email = req.query.email as string;
+  try {
+    const email = req.query.email as string;
 
-        console.log("Profile request email:", email);
+    console.log("Profile request email:", email);
 
-        if (!email) {
-            return res.status(400).json({
-                success: false,
-                message: "Email is required",
-            });
-        }
-
-        const founder = await db
-            .collection("founders")
-            .findOne({ email });
-
-        console.log("Founder from DB:", founder);
-
-        if (!founder) {
-            return res.status(404).json({
-                success: false,
-                message: "Profile not found",
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            founder,
-        });
-
-    } catch (error) {
-        console.error("GET /founders/me error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Failed to fetch profile",
-        });
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
     }
+
+    const founder = await db.collection("founders").findOne({ email });
+
+    console.log("Founder from DB:", founder);
+
+    if (!founder) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      founder,
+    });
+  } catch (error) {
+    console.error("GET /founders/me error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch profile",
+    });
+  }
 });
 
 // ==========================================
